@@ -13,7 +13,7 @@ def create_layers_batch(network_input_size, layer_output_sizes, rng):
         i_size = layer_output_size
     return layers
 
-def feed_forward_batches(inputs,layers,activation_funcs):
+def feed_forward_batch(inputs,layers,activation_funcs):
     a = inputs
 
     for (W,b), activation_func in zip(layers,activation_funcs):
@@ -21,9 +21,9 @@ def feed_forward_batches(inputs,layers,activation_funcs):
     return a
 
 def cost_batch(layers, inputs, activation_funcs, targets, cost=mse):
-    return cost(feed_forward_batches(inputs, layers, activation_funcs), targets)
+    return cost(feed_forward_batch(inputs, layers, activation_funcs), targets)
 
-def feed_forward_saver_batches(inputs, layers, activation_funcs):
+def feed_forward_saver_batch(inputs, layers, activation_funcs):
     layer_inputs = []
     zs = []
     a = inputs
@@ -37,7 +37,7 @@ def feed_forward_saver_batches(inputs, layers, activation_funcs):
 
 def backprop_batch(inputs, layers, activation_funcs, targets, activation_ders, cost_der=mse_der):
 
-    layer_inputs,zs, predict = feed_forward_saver_batches(inputs, layers, activation_funcs)
+    layer_inputs,zs, predict = feed_forward_saver_batch(inputs, layers, activation_funcs)
     layer_grads = [() for layer in layers]
 
     for i in reversed(range(len(layers))):
