@@ -7,7 +7,6 @@ if pytest is not installed.
 import numpy as np
 import jax
 jax.config.update("jax_enable_x64", True)   # 64-bit floats, so that results agree with numpy to ~1e-15
-import jax.numpy as jnp 
 
 from neural_network import create_layers_batch, backprop_batch, cost_batch
 from activations import sigmoid, sigmoid_der, linear, linear_der, ReLU, ReLU_der, leaky_ReLU, leaky_ReLU_der, softmax
@@ -78,11 +77,60 @@ def test_layers_reproduce():
     for (W1,b1), (W2,b2) in zip(layers1,layers2):
         assert np.array_equal(W1,W2)
         assert np.array_equal(b1,b2)
-    assert not np.array_equal(layers1[0][0], layers3[0][0]
+    assert not np.array_equal(layers1[0][0], layers3[0][0])
 
 
+def test_backprop_sigmoid_jax():
+    rng = np.random.default_rng(2026)
+
+    layers = create_layers_batch(1,[3,1], rng)
+    activation_funcs = [sigmoid, linear]
+    activation_ders = [sigmoid_der, linear_der]
+
+    inputs = rng.normal(size=(5,1))
+    targets = rng.normal(size=(5,1))
+
+    mine = backprop_batch(inputs,layers,activation_funcs,targets,activation_ders)
+    check = jax.grad(cost_batch)(layers,inputs,activation_funcs,targets)
+
+    for (dW,db), (dW_jax, db_jax) in zip(mine,check):
+        assert np.allclose(dW,dW_jax)
+        assert np.allclose(db,db_jax)
 
 
+def test_backprop_relu_jax():
+    rng = np.random.default_rng(2026)
+    layers = create_layers_batch(1,[4,3,1], rng)
+    a_funcs = [ReLU, leaky_ReLU, linear]
+    d_funcs = [ReLU_der, leaky_ReLU_der, linear_der]
+
+    inputs = rng.normal(size=(5,1))
+    targets = rng.normal(size=(5,1))
+    
+    mine = backprop_batch(inputs,layers,a_funcs,targets,d_funcs)
+    check = jax.grad(cost_batch)(layers,inputs,a_funcs,targets)
+    
+    for (dW,db), (dW_jax, db_jax) in zip(mine,check):
+        assert np.allclose(dW,dW_jax)
+        assert np.allclose(db,db_jax)
+
+def test_backprop_soft_cross_jax():
+    rng = np.random.default_rng(2026)
+    layers = create_layers_batch(4,[5,3],rng)
+    a_funcs = [sigmoid, softmax]
+    d_funcs = [sigmoid_der, linear_der] # softmax: cost_der already has full delta^L
+    cost_der = cross_entropy_softmax_der
+    inputs = rng.normal(size = (6,4))
+    targets = np.zeros((6,3))
+    targets[np.arange(6), rng.integers(0,3,size = 6)] = 1
+
+    mine = backprop_batch(inputs,layers, a_funcs,targets,d_funcs,cost_der = cost_der)
+    check = jax.grad(cost_batch)(layers,inputs,a_funcs,targets,cost=cross_entropy)
+
+
+    for (dW,db), (dW_jax, db_jax) in zip(mine,check):
+        assert np.allclose(dW,dW_jax)
+        assert np.allclose(db,db_jax)
 
 
 if __name__ == "__main__":
