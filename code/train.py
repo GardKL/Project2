@@ -42,3 +42,26 @@ def train_gd(inputs, targets, layers, activation_funcs, activation_ders, gamma=0
         if step % 100 == 0 or step == n_steps - 1:
             history.append(float(cost_batch(layers, inputs, activation_funcs, targets)))
     return layers, history
+
+
+def train_sgd(inputs, targets, layers, activation_funcs, activation_ders,
+              method="adam", gamma=0.01, n_epochs=1000, batch_size=16, seed=2026):
+    """Minibatch SGD with the optimisers of project 1; returns the layers and the training MSE per epoch."""
+    rng = np.random.default_rng(seed)
+    states = [[{},{}] for _ in layers]   # én state for W og én for b, per lag
+    t = 0
+    history = []
+
+    for epoch in range(n_epochs):
+        for idx in make_batches(len(inputs), batch_size, rng):
+            grads = backprop_batch(inputs[idx], layers, activation_funcs, targets[idx], activation_ders)
+            t += 1
+            new_layers = []
+            for i, ((W, b), (dW, db)) in enumerate(zip(layers, grads)):
+                W, states[i][0] = optimiser_step(method, W, dW, states[i][0], t, gamma)
+                b, states[i][1] = optimiser_step(method, b, db, states[i][1],t, gamma)
+                new_layers.append((W,b))
+            layers = new_layers
+        history.append(float(cost_batch(layers, inputs, activation_funcs, targets)))
+
+    return layers, history
